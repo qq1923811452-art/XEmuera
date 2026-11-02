@@ -32,12 +32,19 @@ jobs:
       - name: Verify Xamarin.Android build tools
         shell: pwsh
         run: |
-          $vsRoot = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\2022"
-          $targets = Get-ChildItem -Path $vsRoot -Filter "Xamarin.Android.CSharp.targets" -File -Recurse -ErrorAction SilentlyContinue |
-            Select-Object -First 1
+          $roots = @(
+            (Join-Path $env:ProgramFiles "Microsoft Visual Studio"),
+            (Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio")
+          ) | Where-Object { Test-Path $_ }
+
+          $targets = foreach ($root in $roots) {
+            Get-ChildItem -Path $root -Filter "Xamarin.Android.CSharp.targets" -File -Recurse -ErrorAction SilentlyContinue
+          } | Select-Object -First 1
 
           if (-not $targets) {
-            Write-Error "Xamarin.Android targets were not found on this runner. The legacy Xamarin.Android workload is required."
+            Write-Host "Visual Studio installations:"
+            Get-ChildItem -Path $roots -Directory -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+            Write-Error "Xamarin.Android targets were not found. This runner image may no longer include the legacy Xamarin workload."
             exit 1
           }
 
