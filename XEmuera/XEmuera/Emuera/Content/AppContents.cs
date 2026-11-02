@@ -220,25 +220,17 @@ namespace MinorShift.Emuera.Content
 			}
 			if (!resourceDic.TryGetValue(parentName, out var aContentFile))
 			{
-				SKBitmap bmp = SKBitmap.Decode(parentName);
-				if (bmp == null)
+				ConstImage img = new ConstImage(parentName);
+				if (!img.TryLoadMetadata())
 				{
+					img.Dispose();
 					ParserMediator.Warn(string.Format(trerror.FailedLoadFile.Text, arg2), sp, 1);
 					return null;
 				}
-				if (bmp.Width > AbstractImage.MAX_IMAGESIZE || bmp.Height > AbstractImage.MAX_IMAGESIZE)
+				if (img.Width > AbstractImage.MAX_IMAGESIZE || img.Height > AbstractImage.MAX_IMAGESIZE)
 				{
-					//1824-2 すでに8192以上の幅を持つ画像を利用したバリアントが存在してしまっていたため、警告しつつ許容するように変更
-					//	bmp.Dispose();
+					// Keep compatibility with existing oversized image resources, but report them.
 					ParserMediator.Warn(string.Format(trerror.TooLargeImageFile.Text, AbstractImage.MAX_IMAGESIZE.ToString(), arg2), sp, 1);
-					//return null;
-				}
-				ConstImage img = new ConstImage(parentName);
-				img.CreateFrom(bmp, Config.TextDrawingMode == TextDrawingMode.WINAPI);
-				if (!img.IsCreated)
-				{
-					ParserMediator.Warn(string.Format(trerror.FailedCreateResource.Text, arg2), sp, 1);
-					return null;
 				}
 				resourceDic.Add(parentName, img);
 				aContentFile = img;
@@ -248,7 +240,7 @@ namespace MinorShift.Emuera.Content
                 ParserMediator.Warn(string.Format(trerror.SpriteCreateFromFailedResource.Text, arg2), sp, 1);
                 return null;
             }
-            Rectangle rect = new Rectangle(new Point(0, 0), DisplayUtils.ToSize(parentImage.Bitmap.Info.Size));
+            Rectangle rect = new Rectangle(new Point(0, 0), new Size(parentImage.Width, parentImage.Height));
 			Point pos = new Point();
 			int delay = 1000;
 			//name,parentname, x,y,w,h ,offset_x,offset_y, delayTime
@@ -266,7 +258,7 @@ namespace MinorShift.Emuera.Content
 						ParserMediator.Warn(string.Format(trerror.SpriteSizeIsNegatibe.Text, name), sp, 1);
 						return null;
 					}
-					if (!rect.IntersectsWith(new Rectangle(0,0,parentImage.Bitmap.Width, parentImage.Bitmap.Height)))
+					if (!rect.IntersectsWith(new Rectangle(0,0,parentImage.Width, parentImage.Height)))
 					{
 						ParserMediator.Warn(string.Format(trerror.OoRParentImage.Text, name), sp, 1);
 						return null;
