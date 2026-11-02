@@ -32,25 +32,29 @@ jobs:
       - name: Verify Xamarin.Android build tools
         shell: pwsh
         run: |
-          $roots = @(
-            (Join-Path $env:ProgramFiles "Microsoft Visual Studio"),
-            (Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio")
-          ) | Where-Object { Test-Path $_ }
-
-          $targetCandidates = @()
-          foreach ($root in $roots) {
-            $targetCandidates += Get-ChildItem -Path $root -Filter "Xamarin.Android.CSharp.targets" -File -Recurse -ErrorAction SilentlyContinue
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe was not found; Visual Studio installation cannot be located."
           }
-          $targets = $targetCandidates | Select-Object -First 1
 
-          if (-not $targets) {
-            Write-Host "Visual Studio installations:"
-            Get-ChildItem -Path $roots -Directory -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
-            Write-Error "Xamarin.Android targets were not found. This runner image may no longer include the legacy Xamarin workload."
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+          if (-not $vsPath) {
+            throw "Visual Studio with MSBuild was not found."
+          }
+
+          $targets = Join-Path $vsPath "MSBuild\Xamarin\Android\Xamarin.Android.CSharp.targets"
+          if (-not (Test-Path $targets)) {
+            $targets = Get-ChildItem -Path (Join-Path $vsPath "MSBuild") -Filter "Xamarin.Android.CSharp.targets" -File -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+
+          if (-not $targets -or -not (Test-Path $targets)) {
+            Write-Host "Visual Studio: $vsPath"
+            Write-Error "Xamarin.Android targets are not installed on this runner. A self-hosted runner with the legacy Xamarin.Android workload or a compatible build image is required."
             exit 1
           }
 
-          Write-Host "Xamarin.Android targets: $($targets.FullName)"
+          Write-Host "Xamarin.Android targets: $targets"
           Write-Host "MSBuild: $(Get-Command msbuild.exe | Select-Object -ExpandProperty Source)"
 
       - name: Build and package Release APK
