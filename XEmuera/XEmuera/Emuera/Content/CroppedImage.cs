@@ -68,7 +68,7 @@ namespace MinorShift.Emuera.Content
 			get
 			{
 				if (BaseImage != null && BaseImage.IsCreated)
-					return BaseImage.Bitmap;
+					return (BaseImage as ConstImage)?.GetBitmap() ?? BaseImage.Bitmap;
 				return null;
 			}
 		}
@@ -302,7 +302,7 @@ namespace MinorShift.Emuera.Content
 			offset.Offset(DestBasePosition);
 			offset.Offset(frame.Offset);
 			Rectangle destRect = new Rectangle(offset, frame.SrcRectangle.Size);
-			//g.DrawImage(frame.BaseImage.Bitmap, destRect, frame.SrcRectangle, GraphicsUnit.Pixel);
+			//g.DrawImage((frame.BaseImage as ConstImage)?.GetBitmap() ?? frame.BaseImage.Bitmap, destRect, frame.SrcRectangle, GraphicsUnit.Pixel);
 
 			DrawBitmapUtils.DrawBitmap(g, frame.BaseImage.Bitmap, frame.SrcRectangle, destRect);
 			return;
