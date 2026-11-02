@@ -313,7 +313,10 @@ namespace MinorShift.Emuera.Content
 			Rectangle destRect = new Rectangle(offset, frame.SrcRectangle.Size);
 			//g.DrawImage(frame.BaseImage.GetBitmap(), destRect, frame.SrcRectangle, GraphicsUnit.Pixel);
 
-			DrawBitmapUtils.DrawBitmap(g, (frame.BaseImage as ConstImage)?.GetBitmap() ?? frame.BaseImage.Bitmap, frame.SrcRectangle, destRect);
+			SKBitmap bitmap = frame.BaseImage.GetBitmap();
+			if (bitmap == null)
+				return;
+			DrawBitmapUtils.DrawBitmap(g, bitmap, frame.SrcRectangle, destRect);
 			return;
 		}
 
