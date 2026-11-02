@@ -68,7 +68,7 @@ namespace MinorShift.Emuera.Content
 			get
 			{
 				if (BaseImage != null && BaseImage.IsCreated)
-					return (BaseImage as ConstImage)?.GetBitmap() ?? BaseImage.Bitmap;
+					return BaseImage.GetBitmap();
 				return null;
 			}
 		}
@@ -100,7 +100,10 @@ namespace MinorShift.Emuera.Content
 			offset.Offset(DestBasePosition);
 			//g.DrawImage(Bitmap, new Rectangle(offset, DestBaseSize), SrcRectangle, GraphicsUnit.Pixel);
 
-			DrawBitmapUtils.DrawBitmap(g, Bitmap, SrcRectangle, new Rectangle(offset, DestBaseSize));
+			SKBitmap bitmap = Bitmap;
+			if (bitmap == null)
+				return;
+			DrawBitmapUtils.DrawBitmap(g, bitmap, SrcRectangle, new Rectangle(offset, DestBaseSize));
 		}
 		public override void GraphicsDraw(SKCanvas g, Rectangle destRect)
 		{
@@ -111,7 +114,10 @@ namespace MinorShift.Emuera.Content
 			}
 			//g.DrawImage(Bitmap, destRect, SrcRectangle, GraphicsUnit.Pixel);
 
-			DrawBitmapUtils.DrawBitmap(g, Bitmap, SrcRectangle, destRect);
+			SKBitmap bitmap = Bitmap;
+			if (bitmap == null)
+				return;
+			DrawBitmapUtils.DrawBitmap(g, bitmap, SrcRectangle, destRect);
 		}
 
 		public override void GraphicsDraw(SKCanvas g, Rectangle destRect, SKColorFilter attr)
@@ -124,7 +130,10 @@ namespace MinorShift.Emuera.Content
 			////g.DrawImage(Bitmap, destRect, SrcRectangle, GraphicsUnit.Pixel, attr);←このパターンがない
 			//g.DrawImage(Bitmap, destRect, SrcRectangle.X, SrcRectangle.Y, SrcRectangle.Width, SrcRectangle.Height, GraphicsUnit.Pixel, attr);
 
-			DrawBitmapUtils.DrawBitmap(g, Bitmap, SrcRectangle, destRect, attr);
+			SKBitmap bitmap = Bitmap;
+			if (bitmap == null)
+				return;
+			DrawBitmapUtils.DrawBitmap(g, bitmap, SrcRectangle, destRect, attr);
 		}
 
 	}
@@ -302,7 +311,7 @@ namespace MinorShift.Emuera.Content
 			offset.Offset(DestBasePosition);
 			offset.Offset(frame.Offset);
 			Rectangle destRect = new Rectangle(offset, frame.SrcRectangle.Size);
-			//g.DrawImage((frame.BaseImage as ConstImage)?.GetBitmap() ?? frame.BaseImage.Bitmap, destRect, frame.SrcRectangle, GraphicsUnit.Pixel);
+			//g.DrawImage(frame.BaseImage.GetBitmap(), destRect, frame.SrcRectangle, GraphicsUnit.Pixel);
 
 			DrawBitmapUtils.DrawBitmap(g, (frame.BaseImage as ConstImage)?.GetBitmap() ?? frame.BaseImage.Bitmap, frame.SrcRectangle, destRect);
 			return;
@@ -319,7 +328,10 @@ namespace MinorShift.Emuera.Content
 			destRect.Height = frame.SrcRectangle.Height * destRect.Height / DestBaseSize.Height;
 			//g.DrawImage(frame.BaseImage.Bitmap, destRect, frame.SrcRectangle, GraphicsUnit.Pixel);
 
-			DrawBitmapUtils.DrawBitmap(g, frame.BaseImage.Bitmap, frame.SrcRectangle, destRect);
+			SKBitmap bitmap = frame.BaseImage.GetBitmap();
+			if (bitmap == null)
+				return;
+			DrawBitmapUtils.DrawBitmap(g, bitmap, frame.SrcRectangle, destRect);
 		}
 
 		public override void GraphicsDraw(SKCanvas g, Rectangle destRect, SKColorFilter attr)
@@ -334,7 +346,10 @@ namespace MinorShift.Emuera.Content
 			////g.DrawImage(frame.BaseImage.Bitmap, destRect, SrcRectangle, GraphicsUnit.Pixel, attr);←このパターンがない
 			//g.DrawImage(frame.BaseImage.Bitmap, destRect, frame.SrcRectangle.X, frame.SrcRectangle.Y, frame.SrcRectangle.Width, frame.SrcRectangle.Height, GraphicsUnit.Pixel, attr);
 
-			DrawBitmapUtils.DrawBitmap(g, frame.BaseImage.Bitmap, frame.SrcRectangle, destRect, attr);
+			SKBitmap bitmap = frame.BaseImage.GetBitmap();
+			if (bitmap == null)
+				return;
+			DrawBitmapUtils.DrawBitmap(g, bitmap, frame.SrcRectangle, destRect, attr);
 		}
 
 	}
