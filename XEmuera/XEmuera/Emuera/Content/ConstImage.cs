@@ -75,25 +75,22 @@ namespace MinorShift.Emuera.Content
 		/// </summary>
 		internal SKBitmap GetBitmap()
 		{
-			get
+			lock (bitmapLock)
 			{
-				lock (bitmapLock)
+				if (disposed || !metadataLoaded)
+					return null;
+				if (bitmap == null)
 				{
-					if (disposed || !metadataLoaded)
-						return null;
-					if (bitmap == null)
+					try
 					{
-						try
-						{
-							bitmap = SKBitmap.Decode(FilePath);
-						}
-						catch
-						{
-							bitmap = null;
-						}
+						bitmap = SKBitmap.Decode(FilePath);
 					}
-					return bitmap;
+					catch
+					{
+						bitmap = null;
+					}
 				}
+				return bitmap;
 			}
 		}
 
