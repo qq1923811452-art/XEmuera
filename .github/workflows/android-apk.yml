@@ -1,0 +1,108 @@
+name: Android APK (Xamarin)
+
+on:
+  push:
+    branches:
+      - codex/xemuera-html-print-startup-performance
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    name: Build Android Release APK
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Locate MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Verify Xamarin.Android build tools
+        shell: pwsh
+        run: |
+          $vsRoot = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\2022"
+          $targets = Get-ChildItem -Path $vsRoot -Filter "Xamarin.Android.CSharp.targets" -File -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+
+          if (-not $targets) {
+            Write-Error "Xamarin.Android targets were not found on this runner. The legacy Xamarin.Android workload is required."
+            exit 1
+          }
+
+          Write-Host "Xamarin.Android targets: $($targets.FullName)"
+          Write-Host "MSBuild: $(Get-Command msbuild.exe | Select-Object -ExpandProperty Source)"
+
+      - name: Build and package Release APK
+        shell: pwsh
+        run: |
+          $project = "XEmuera/XEmuera.Android/XEmuera.Android.csproj"
+          if (-not (Test-Path $project)) {
+            throw "Android project not found: $project"
+          }
+
+          msbuild $project /restore /t:SignAndroidPackage /m:1 /v:minimal `
+            /p:Configuration=Release `
+            /p:AndroidPackageFormat=apk `
+            /p:AndroidKeyStore=false `
+            /p:AndroidSigningKeyStore= `
+            /p:AndroidSigningStorePass= `
+            /p:AndroidSigningKeyAlias= `
+            /p:AndroidSigningKeyPass=
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "MSBuild failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Validate APK and write checksum
+        id: package
+        shell: pwsh
+        run: |
+          $outputDir = "XEmuera/XEmuera.Android/bin/Release"
+          $apk = Get-ChildItem -Path $outputDir -Filter "*.apk" -File -Recurse |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $apk) {
+            throw "Build completed but no APK was found under $outputDir"
+          }
+
+          if ($apk.Length -le 0) {
+            throw "APK is empty: $($apk.FullName)"
+          }
+
+          $artifactDir = "artifacts/android"
+          New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
+          $destination = Join-Path $artifactDir "XEmuera-android-Release.apk"
+          Copy-Item -LiteralPath $apk.FullName -Destination $destination -Force
+
+          $hash = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant()
+          $sizeMb = [Math]::Round((Get-Item $destination).Length / 1MB, 2)
+          "SHA256  $hash" | Set-Content -Path (Join-Path $artifactDir "SHA256SUMS.txt")
+          "SizeMB=$sizeMb" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "ApkPath=$destination" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          Write-Host "APK: $destination"
+          Write-Host "Size: $sizeMb MB"
+          Write-Host "SHA256: $hash"
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: XEmuera-Android-Release-${{ github.run_number }}
+          path: |
+            artifacts/android/XEmuera-android-Release.apk
+            artifacts/android/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
