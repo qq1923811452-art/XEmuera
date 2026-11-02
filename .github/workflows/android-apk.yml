@@ -37,9 +37,11 @@ jobs:
             (Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio")
           ) | Where-Object { Test-Path $_ }
 
-          $targets = foreach ($root in $roots) {
-            Get-ChildItem -Path $root -Filter "Xamarin.Android.CSharp.targets" -File -Recurse -ErrorAction SilentlyContinue
-          } | Select-Object -First 1
+          $targetCandidates = @()
+          foreach ($root in $roots) {
+            $targetCandidates += Get-ChildItem -Path $root -Filter "Xamarin.Android.CSharp.targets" -File -Recurse -ErrorAction SilentlyContinue
+          }
+          $targets = $targetCandidates | Select-Object -First 1
 
           if (-not $targets) {
             Write-Host "Visual Studio installations:"
