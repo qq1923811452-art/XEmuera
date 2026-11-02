@@ -7,9 +7,9 @@ namespace MinorShift.Emuera.Content
 	internal abstract class AbstractImage : AContentFile
 	{
 		public const int MAX_IMAGESIZE = 8192;
-		public abstract SKBitmap Bitmap { get; }
-		public abstract int Width { get; }
-		public abstract int Height { get; }
+		public SKBitmap Bitmap;
+		public virtual int Width { get { return Bitmap != null ? Bitmap.Width : 0; } }
+		public virtual int Height { get { return Bitmap != null ? Bitmap.Height : 0; } }
 		protected SKCanvas g;
 	}
 
@@ -73,7 +73,7 @@ namespace MinorShift.Emuera.Content
 		/// Decodes the image only when a renderer first requests its pixels.
 		/// The lock prevents duplicate decodes if drawing is requested concurrently.
 		/// </summary>
-		public override SKBitmap Bitmap
+		internal SKBitmap GetBitmap()
 		{
 			get
 			{
