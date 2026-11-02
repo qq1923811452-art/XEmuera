@@ -1,110 +1,131 @@
-﻿using MinorShift._Library;
-using SkiaSharp;
+﻿using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Text;
 
 namespace MinorShift.Emuera.Content
 {
 	internal abstract class AbstractImage : AContentFile
 	{
 		public const int MAX_IMAGESIZE = 8192;
-		public SKBitmap Bitmap;
-		//public IntPtr GDIhDC { get; protected set; }
+		public abstract SKBitmap Bitmap { get; }
+		public abstract int Width { get; }
+		public abstract int Height { get; }
 		protected SKCanvas g;
-		//protected IntPtr hBitmap;
-		//protected IntPtr hDefaultImg;
-		//protected bool gdi;
 	}
 
+	/// <summary>
+	/// A file-backed image. Resource registration reads only its header;
+	/// pixel data is decoded on first use.
+	/// </summary>
 	internal sealed class ConstImage : AbstractImage
 	{
-		public ConstImage(string name)
-		{ Name = name; }
+		private readonly object bitmapLock = new object();
+		private SKBitmap bitmap;
+		private int width;
+		private int height;
+		private bool metadataLoaded;
+		private bool disposed;
 
+		public ConstImage(string name)
+		{
+			Name = name;
+			FilePath = name;
+		}
 
 		public readonly string Name;
+		public readonly string FilePath;
 
-		internal void CreateFrom(SKBitmap bmp, bool useGDI)
+		public override int Width { get { return width; } }
+		public override int Height { get { return height; } }
+
+		/// <summary>
+		/// Reads image dimensions without decoding the full pixel buffer.
+		/// </summary>
+		internal bool TryLoadMetadata()
 		{
-			if (Bitmap != null)
-				throw new Exception();
-			try
+			lock (bitmapLock)
 			{
-				Bitmap = bmp;
-				//if (useGDI)
-				//{
-				//	gdi = true;
-				//	hBitmap = Bitmap.GetHbitmap();
-				//	g = Graphics.FromImage(Bitmap);
-				//	GDIhDC = g.GetHdc();
-				//	hDefaultImg = GDI.SelectObject(GDIhDC, hBitmap);
-				//}
+				if (disposed)
+					return false;
+				if (metadataLoaded)
+					return width > 0 && height > 0;
+
+				try
+				{
+					using (SKCodec codec = SKCodec.Create(FilePath))
+					{
+						if (codec == null)
+							return false;
+						width = codec.Info.Width;
+						height = codec.Info.Height;
+						metadataLoaded = width > 0 && height > 0;
+						return metadataLoaded;
+					}
+				}
+				catch
+				{
+					return false;
+				}
 			}
-			catch
-			{
-				return;
-			}
-			return;
 		}
-		//public void Load(bool useGDI)
-		//{
-		//	if (Loaded)
-		//		return;
-		//	try
-		//	{
-		//		Bitmap = new Bitmap(Filepath);
-		//		if (useGDI)
-		//		{
-		//			hBitmap = Bitmap.GetHbitmap();
-		//			g = Graphics.FromImage(Bitmap);
-		//			GDIhDC = g.GetHdc();
-		//			hDefaultImg = GDI.SelectObject(GDIhDC, hBitmap);
-		//		}
-		//		Loaded = true;
-		//		Enabled = true;
-		//	}
-		//	catch
-		//	{
-		//		return;
-		//	}
-		//	return;
-		//}
+
+		/// <summary>
+		/// Decodes the image only when a renderer first requests its pixels.
+		/// The lock prevents duplicate decodes if drawing is requested concurrently.
+		/// </summary>
+		public override SKBitmap Bitmap
+		{
+			get
+			{
+				lock (bitmapLock)
+				{
+					if (disposed || !metadataLoaded)
+						return null;
+					if (bitmap == null)
+					{
+						try
+						{
+							bitmap = SKBitmap.Decode(FilePath);
+						}
+						catch
+						{
+							bitmap = null;
+						}
+					}
+					return bitmap;
+				}
+			}
+		}
 
 		public override void Dispose()
 		{
-			if (Bitmap == null)
-				return;
-			//if (gdi)
-			//{
-			//	GDI.SelectObject(GDIhDC, hDefaultImg);
-			//	GDI.DeleteObject(hBitmap);
-			//	//gがすでに死んでると例外になる
-			//	if(g != null)
-			//	g.ReleaseHdc(GDIhDC);
-			//}
-			if (g != null)
+			lock (bitmapLock)
 			{
-				g.Dispose();
-				g = null;
+				if (disposed)
+					return;
+				disposed = true;
+				if (g != null)
+				{
+					g.Dispose();
+					g = null;
+				}
+				if (bitmap != null)
+				{
+					bitmap.Dispose();
+					bitmap = null;
+				}
 			}
-			if (Bitmap != null)
-			{
-				Bitmap.Dispose();
-				Bitmap = null;
-			}
+			GC.SuppressFinalize(this);
 		}
 
-        ~ConstImage()
-        {
-            Dispose();
-        }
-
+		~ConstImage()
+		{
+			Dispose();
+		}
 
 		public override bool IsCreated
 		{
-			get { return Bitmap != null; }
+			get { return !disposed && metadataLoaded; }
 		}
 	}
 }
